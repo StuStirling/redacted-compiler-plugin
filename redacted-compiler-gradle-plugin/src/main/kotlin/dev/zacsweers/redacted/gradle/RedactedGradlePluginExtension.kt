@@ -10,6 +10,7 @@ open class RedactedPluginExtension {
   var redactedAnnotation: String = DEFAULT_ANNOTATION
   var enabled: Boolean = true
   var replacementString: String = "██"
+  var redactClassName: Boolean = false
   var redactAllDataClasses : Boolean = false
   internal var variantFilter: Action<VariantFilter>? = null
 
@@ -29,6 +30,12 @@ interface VariantFilter {
    * the extension.
    */
   fun overrideEnabled(enabled: Boolean)
+
+  /**
+   * Overrides whether or not to redact the class name for this particular variant. Default is whatever is declared in
+   * the extension.
+   */
+  fun overrideRedactClassName(redactClassName: Boolean)
 
   /**
    * Overrides whether or not to redact all data classes for this particular variant. Default is whatever is declared in

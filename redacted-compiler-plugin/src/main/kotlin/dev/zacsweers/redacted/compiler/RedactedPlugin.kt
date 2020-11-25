@@ -27,8 +27,9 @@ class RedactedComponentRegistrar : ComponentRegistrar {
     val redactedAnnotation = checkNotNull(configuration[KEY_REDACTED_ANNOTATION])
     val redactAllDataClasses = configuration[KEY_REDACT_ALL_DATA_CLASSES] == true
     val fqRedactedAnnotation = FqName(redactedAnnotation)
+    val redactClassName = configuration[KEY_REDACT_CLASS_NAME] == true
     ExpressionCodegenExtension.registerExtensionAsFirst(project,
-        RedactedCodegenExtension(messageCollector, replacementString, fqRedactedAnnotation, redactAllDataClasses))
+        RedactedCodegenExtension(messageCollector, replacementString, fqRedactedAnnotation,redactClassName,redactAllDataClasses))
 
     SyntheticResolveExtension.registerExtensionAsFirst(project,
         RedactedSyntheticResolveExtension(fqRedactedAnnotation,redactAllDataClasses))

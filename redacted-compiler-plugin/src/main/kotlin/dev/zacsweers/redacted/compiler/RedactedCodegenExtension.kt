@@ -50,6 +50,7 @@ class RedactedCodegenExtension(
     private val messageCollector: MessageCollector,
     private val replacementString: String,
     private val fqRedactedAnnotation: FqName,
+    private val redactClassName: Boolean,
     private val redactAllDataClasses: Boolean
 ) : ExpressionCodegenExtension {
 
@@ -106,7 +107,8 @@ class RedactedCodegenExtension(
         v = codegen.v,
         generationState = codegen.state,
         replacementString = replacementString,
-        fqRedactedAnnotation = fqRedactedAnnotation
+        fqRedactedAnnotation = fqRedactedAnnotation,
+        redactClassName =redactClassName
     ).generateToStringMethod(
         targetClass.findToStringFunction()!!,
         properties
@@ -122,7 +124,8 @@ private class ToStringGenerator(
     private val v: ClassBuilder,
     private val generationState: GenerationState,
     private val replacementString: String,
-    private val fqRedactedAnnotation: FqName
+    private val fqRedactedAnnotation: FqName,
+    private val redactClassName: Boolean
 ) {
   private val typeMapper: KotlinTypeMapper = generationState.typeMapper
   private val underlyingType: JvmKotlinType
@@ -185,56 +188,61 @@ private class ToStringGenerator(
     mv.visitCode()
     AsmUtil.genStringBuilderConstructor(iv)
 
-    if (properties.isEmpty()) {
-      // This is a redacted class, so just emit a single replacementString
-      iv.aconst(classDescriptor.name.toString() + "(" + replacementString)
-      AsmUtil.genInvokeAppendMethod(iv, AsmTypes.JAVA_STRING_TYPE, null)
+    val className = if (redactClassName) replacementString else classDescriptor.name.toString()
+
+    if (redactClassName && properties.isEmpty()) {
+      iv.aconst(replacementString)
     } else {
-      var first = true
-      for (propertyDescriptor in properties) {
-        val isRedacted = propertyDescriptor.isRedacted(fqRedactedAnnotation)
-        val possibleValue = if (isRedacted) replacementString else ""
-        if (first) {
-          iv.aconst(classDescriptor.name.toString() + "(" + propertyDescriptor.name
-              .asString() + "=$possibleValue")
-          first = false
-        } else {
-          iv.aconst(", " + propertyDescriptor.name
-              .asString() + "=$possibleValue")
-        }
+      if (properties.isEmpty()) {
+        // This is a redacted class, so just emit a single replacementString
+        iv.aconst("$className($replacementString")
         AsmUtil.genInvokeAppendMethod(iv, AsmTypes.JAVA_STRING_TYPE, null)
-
-        if (!isRedacted) {
-          val type = genOrLoadOnStack(iv, context, propertyDescriptor, 0)
-          var asmType = type.type
-          var kotlinType = type.kotlinType
-
-          if (asmType.sort == Type.ARRAY) {
-            val elementType = AsmUtil.correctElementType(asmType)
-            if (elementType.sort == Type.OBJECT || elementType.sort == Type.ARRAY) {
-              iv.invokestatic("java/util/Arrays",
-                  "toString",
-                  "([Ljava/lang/Object;)Ljava/lang/String;",
-                  false)
-              asmType = AsmTypes.JAVA_STRING_TYPE
-              kotlinType = function.builtIns
-                  .stringType
-            } else if (elementType.sort != Type.CHAR) {
-              iv.invokestatic("java/util/Arrays",
-                  "toString",
-                  "(" + asmType.descriptor + ")Ljava/lang/String;",
-                  false)
-              asmType = AsmTypes.JAVA_STRING_TYPE
-              kotlinType = function.builtIns
-                  .stringType
-            }
+      } else {
+        var first = true
+        for (propertyDescriptor in properties) {
+          val isRedacted = propertyDescriptor.isRedacted(fqRedactedAnnotation)
+          val possibleValue = if (isRedacted) replacementString else ""
+          if (first) {
+            iv.aconst("$className(" + propertyDescriptor.name
+                    .asString() + "=$possibleValue")
+            first = false
+          } else {
+            iv.aconst(", " + propertyDescriptor.name
+                    .asString() + "=$possibleValue")
           }
-          AsmUtil.genInvokeAppendMethod(iv, asmType, kotlinType, typeMapper)
+          AsmUtil.genInvokeAppendMethod(iv, AsmTypes.JAVA_STRING_TYPE, null)
+
+          if (!isRedacted) {
+            val type = genOrLoadOnStack(iv, context, propertyDescriptor, 0)
+            var asmType = type.type
+            var kotlinType = type.kotlinType
+
+            if (asmType.sort == Type.ARRAY) {
+              val elementType = AsmUtil.correctElementType(asmType)
+              if (elementType.sort == Type.OBJECT || elementType.sort == Type.ARRAY) {
+                iv.invokestatic("java/util/Arrays",
+                        "toString",
+                        "([Ljava/lang/Object;)Ljava/lang/String;",
+                        false)
+                asmType = AsmTypes.JAVA_STRING_TYPE
+                kotlinType = function.builtIns
+                        .stringType
+              } else if (elementType.sort != Type.CHAR) {
+                iv.invokestatic("java/util/Arrays",
+                        "toString",
+                        "(" + asmType.descriptor + ")Ljava/lang/String;",
+                        false)
+                asmType = AsmTypes.JAVA_STRING_TYPE
+                kotlinType = function.builtIns
+                        .stringType
+              }
+            }
+            AsmUtil.genInvokeAppendMethod(iv, asmType, kotlinType, typeMapper)
+          }
         }
       }
+      iv.aconst(")")
     }
-
-    iv.aconst(")")
     AsmUtil.genInvokeAppendMethod(iv, AsmTypes.JAVA_STRING_TYPE, null)
 
     iv.invokevirtual("java/lang/StringBuilder", "toString", "()Ljava/lang/String;", false)

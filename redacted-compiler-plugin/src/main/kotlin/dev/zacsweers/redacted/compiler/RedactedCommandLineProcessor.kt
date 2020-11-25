@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.config.CompilerConfigurationKey
 internal val KEY_ENABLED = CompilerConfigurationKey<Boolean>("enabled")
 internal val KEY_REPLACEMENT_STRING = CompilerConfigurationKey<String>("replacementString")
 internal val KEY_REDACTED_ANNOTATION = CompilerConfigurationKey<String>("redactedAnnotation")
+internal val KEY_REDACT_CLASS_NAME = CompilerConfigurationKey<Boolean>("redactClassName")
 internal val KEY_REDACT_ALL_DATA_CLASSES = CompilerConfigurationKey<Boolean>("redactAllDataClasses")
 
 @AutoService(CommandLineProcessor::class)
@@ -22,6 +23,7 @@ class RedactedCommandLineProcessor : CommandLineProcessor {
           CliOption("enabled", "<true | false>", "", required = true),
           CliOption("replacementString", "String", "", required = true),
           CliOption("redactedAnnotation", "String", "", required = true),
+          CliOption("redactClassName", "<true | false>", "", required = true),
           CliOption("redactAllDataClasses", "<true | false>", "", required = true),
       )
 
@@ -33,6 +35,7 @@ class RedactedCommandLineProcessor : CommandLineProcessor {
     "enabled" -> configuration.put(KEY_ENABLED, value.toBoolean())
     "replacementString" -> configuration.put(KEY_REPLACEMENT_STRING, value)
     "redactedAnnotation" -> configuration.put(KEY_REDACTED_ANNOTATION, value)
+    "redactClassName" -> configuration.put(KEY_REDACT_CLASS_NAME, value.toBoolean())
     "redactAllDataClasses" -> configuration.put(KEY_REDACT_ALL_DATA_CLASSES, value.toBoolean())
     else -> error("Unknown plugin option: ${option.optionName}")
   }

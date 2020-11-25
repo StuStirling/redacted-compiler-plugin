@@ -72,6 +72,9 @@ redacted {
   // Define a custom replacement string for redactions.
   replacementString = "██" // Default
 
+  // Define whether or not class names are output into the toString method or redacted
+  redactClassName = false // Default
+
   // Define whether you want to redact every data class regardless of the @Redact annotation. This 
   // will redact as if you annotated each class
   redactAllDataClasses = false // Default
